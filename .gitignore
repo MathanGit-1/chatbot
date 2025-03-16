@@ -1,1 +1,16 @@
+# Ignore build and debug files
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.FileListAbsolute.txt
+*.sourceLink.json
+
+# Ignore IDE-specific files (optional)
 .vs/
+.vscode/
+
+# Ignore Node.js dependencies
+node_modules/
