@@ -41,35 +41,7 @@ namespace chatbot_api.Controllers
                 {
                     return Ok(new { response = ruleResponse });
                 }
-
-                // Call Gemini AI if no rule-based response
-                string apiKey = _configuration["AIProvider:APIKey"];
-                string apiUrl = $"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateText?key={apiKey}";
-
-                var requestBody = new
-                {
-                    prompt = new { text = query.Message }
-                };
-
-                var request = new HttpRequestMessage(HttpMethod.Post, apiUrl)
-                {
-                    Content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(requestBody),
-                    Encoding.UTF8, "application/json")
-                };
-
-                var response = await _httpClient.SendAsync(request);
-                var responseString = await response.Content.ReadAsStringAsync();
-
-                // Ensure response is valid JSON
-                if (string.IsNullOrWhiteSpace(responseString))
-                {
-                    return BadRequest(new { error = "Invalid response from AI API." });
-                }
-
-                var responseData = JObject.Parse(responseString);
-                string aiResponse = responseData["candidates"]?[0]?["output"]?.ToString() ?? "I don't have an answer for that.";
-
-                return Ok(new { response = aiResponse });
+                return NoContent();
             }
             catch (Exception ex)
             {

@@ -7,6 +7,10 @@ obj/
 *.cache
 *.FileListAbsolute.txt
 *.sourceLink.json
+__pycache__/
+*.pyc
+~$*.xlsx
+
 
 # Ignore IDE-specific files (optional)
 .vs/
