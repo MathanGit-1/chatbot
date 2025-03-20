@@ -3,83 +3,115 @@ import axios from "axios";
 import "../styles.css";
 
 const Chatbot = () => {
+  // ✅ State Variables
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isOpen, setIsOpen] = useState(false); ;
+  const [isOpen, setIsOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
+  // ✅ API Endpoints
+  const ruleBasedAPI = "https://localhost:44350/api/Chatbot";
+  const faissAPI = "http://127.0.0.1:5001/chatbot";
+  
+  // ✅ Define LLM API URL (COMMENTED OUT)
+  // const llmAPI = "http://127.0.0.1:5002/llm-response";
+
+  // ✅ Send Message Function
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
+    // ✅ Add User Message to Chat
     const userMessage = { text: input, sender: "user" };
     setMessages((prev) => [...prev, userMessage]);
     setIsTyping(true);
 
+    let botResponse = "Sorry, I couldn't find a response.";
+    const userQuery = input.toLowerCase().trim();
+
+    setInput(""); // ✅ Clear input field immediately
+
     try {
-      let botResponse = "Sorry, no response found.";
-      const ruleBasedAPI = "https://localhost:44350/api/Chatbot";
-      const faissAPI = "http://127.0.0.1:5001/chatbot";
+      console.log("📢 Calling Rule-Based API...");
+      const ruleResponse = await axios.post(
+        ruleBasedAPI,
+        { message: userQuery },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
-      const userQuery = input.toLowerCase().trim();
+      console.log("📌 Rule-Based API Response:", ruleResponse.data);
 
-      try {
-        const ruleResponse = await axios.post(
-          ruleBasedAPI,
-          { message: userQuery },
-          { headers: { "Content-Type": "application/json" } }
-        );
+      if (ruleResponse.status === 200 && ruleResponse.data.response) {
+        botResponse = ruleResponse.data.response;
+      } else {
+        console.log("⚠️ No rule-based match, calling FAISS...");
 
-        console.log("🔹 Rule-Based API Response:", ruleResponse.data);
-
-        if (ruleResponse.status === 200 && ruleResponse.data.response) {
-          botResponse = ruleResponse.data.response; // ✅ Use rule-based response if available
-        } else {
-          console.log("⚠️ No match found in Rule-Based API. Calling FAISS...");
-          
-          const faissResponse = await axios.post(
-            faissAPI,
-            { query: userQuery },
-            { headers: { "Content-Type": "application/json" } }
-          );
-
-          console.log("🔹 FAISS API Response:", faissResponse.data);
-
-          botResponse = faissResponse.data.response || "No matching response found.";
-        }
-      } catch (error) {
-        console.error("⚠️ Rule-Based API Error:", error.message);
-
-        // ✅ If rule-based API fails, directly call FAISS API
         try {
+          console.log("🟢 Sending request to FAISS API:", faissAPI, "with query:", userQuery);
           const faissResponse = await axios.post(
             faissAPI,
             { query: userQuery },
             { headers: { "Content-Type": "application/json" } }
           );
 
-          console.log("🔹 FAISS API Response (After Rule-Based API Failure):", faissResponse.data);
+          console.log("📌 FAISS API Response:", faissResponse.data);
 
-          botResponse = faissResponse.data.response || "No matching response found.";
+          if (faissResponse.status === 200 && faissResponse.data.response) {
+            botResponse = faissResponse.data.response;
+          } else {
+            console.log("⚠️ No FAISS match found.");
+
+            // ✅ Step 3: COMMENTED OUT GEMINI LLM LOGIC
+            /*
+            console.log("🔮 FAISS returned None! Calling Gemini LLM API...");
+            try {
+              console.log("🟢 Sending request to LLM API:", llmAPI, "with query:", userQuery);
+              const llmResponse = await axios.post(
+                llmAPI,
+                { query: userQuery },
+                { headers: { "Content-Type": "application/json" } }
+              );
+
+              console.log("📌 LLM API Raw Response:", llmResponse);
+              console.log("📌 LLM API Response Data:", llmResponse.data);
+
+              if (llmResponse.status === 200 && llmResponse.data.response) {
+                botResponse = llmResponse.data.response;
+              } else {
+                console.log("❌ No AI response found from LLM.");
+                botResponse = "Sorry, I couldn't find a suitable response.";
+              }
+            } catch (llmError) {
+              console.error("❌ Error calling LLM API:", llmError);
+              botResponse = "AI service unavailable. Please try again later.";
+            }
+            */
+          }
         } catch (faissError) {
-          console.error("⚠️ FAISS API Error:", faissError.message);
+          console.error("❌ Error calling FAISS API:", faissError);
+          botResponse = "Error processing your request.";
         }
       }
-
-      setIsTyping(false);
-      setMessages((prev) => [...prev, { text: botResponse, sender: "bot" }]);
-    } catch (error) {
-      console.error("❌ Error calling chatbot API:", error);
-      setMessages((prev) => [
-        ...prev,
-        { text: "Error: Unable to connect to chatbot.", sender: "bot" },
-      ]);
+    } catch (ruleError) {
+      console.error("❌ Error calling Rule-Based API:", ruleError);
+      botResponse = "Unexpected error. Please try again.";
     }
 
-    setInput(""); 
+    // ✅ Update Chatbot Messages
+    setIsTyping(false);
+    setMessages((prev) => [...prev, { text: botResponse, sender: "bot" }]);
+  };
+
+  // ✅ Handle "Enter" key press
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // ✅ Prevents page refresh
+      handleSendMessage(); // ✅ Triggers send function
+    }
   };
 
   return (
     <div>
+      {/* ✅ Chatbot Toggle Button */}
       <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
         {isOpen ? "Close Chat" : "Chat with Assistant"}
       </button>
@@ -103,7 +135,7 @@ const Chatbot = () => {
                 </p>
               </div>
             ))}
-            {/* ✅ Typing Indicator (Show only when Chatbot is typing) */}
+            {/* ✅ Typing Indicator */}
             {isTyping && <div className="typing-indicator">Chatbot is typing...</div>}
           </div>
           <div className="chatbot-input-container">
@@ -111,6 +143,7 @@ const Chatbot = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyPress} // ✅ Detect "Enter" key press
               placeholder="Type a message..."
               className="chatbot-input"
             />

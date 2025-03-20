@@ -25,9 +25,9 @@ dimension = query_embeddings.shape[1]
 index = faiss.IndexFlatL2(dimension)
 index.add(query_embeddings)
 
-print("Indexed Queries in FAISS:")
+print("✅ Indexed Queries in FAISS:")
 for query in queries:
-    print(query)
+    print(f"  - {query}")
 
 # Save FAISS index and responses
 faiss.write_index(index, "faiss_index.bin")
@@ -36,7 +36,7 @@ faiss.write_index(index, "faiss_index.bin")
 with open("responses.pkl", "wb") as f:
     pickle.dump(responses, f)
 
-print("FAISS index and responses saved successfully.")
+print("✅ FAISS index and responses saved successfully.")
 
 def load_faiss_index():
     """Loads FAISS index and responses"""
@@ -67,7 +67,7 @@ def cosine_similarity(vec1, vec2):
     """Compute cosine similarity between two vectors"""
     return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-def search_faiss(query, threshold=0.75):  # Adjusted threshold from 0.9 to 0.75
+def search_faiss(query, threshold=0.60):  # Adjusted threshold remains 0.75
     """Search FAISS and compute cosine similarity properly"""
     query = preprocess_query(query)  # Preprocess short queries
     query_embedding = model.encode([query], convert_to_numpy=True)
@@ -76,7 +76,8 @@ def search_faiss(query, threshold=0.75):  # Adjusted threshold from 0.9 to 0.75
     best_match_index = I[0][0]
 
     if best_match_index == -1:
-        return "Sorry, I don't know the answer to that."
+        print("⚠️ FAISS: No match found. Triggering LLM fallback...")
+        return None  # ✅ Ensure app.py calls LLM
 
     best_match_query = queries[best_match_index]
     best_match_vector = query_embeddings[best_match_index]  # Get best match vector
@@ -84,15 +85,16 @@ def search_faiss(query, threshold=0.75):  # Adjusted threshold from 0.9 to 0.75
     # Compute correct cosine similarity
     similarity_score = cosine_similarity(query_embedding[0], best_match_vector)
 
-    print(f"User Query: {query}")
-    print(f"Best Match Query: {best_match_query}")
-    print(f"Cosine Similarity Score: {similarity_score}")
+    print(f"🔍 User Query: {query}")
+    print(f"🔹 Best Match Query: {best_match_query}")
+    print(f"📊 Cosine Similarity Score: {similarity_score}")
 
     if similarity_score < threshold:  # If score < 0.75, return fallback
         print("⚠️ Low similarity score! Returning fallback response.")
-        return "Sorry, I don't know the answer to that."
+        #return None  # ✅ Ensure app.py calls LLM
+        return "I'm sorry, I couldn't find a suitable response in my database."
 
     return responses[best_match_index]
 
 if __name__ == "__main__":
-    print("FAISS setup complete!")
+    print("✅ FAISS setup complete!")
